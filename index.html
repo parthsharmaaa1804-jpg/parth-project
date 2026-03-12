@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Realistic G-Wagon Car Game</title>
+<style>
+  body { margin:0; background:#222; color:#fff; text-align:center; font-family:Arial,sans-serif; }
+  canvas { display:block; margin:20px auto; background:#444; border:3px solid #fff; }
+  #score { font-size:24px; margin:10px; }
+  #ads, #store, #leaderboard { margin:20px auto; padding:10px; background:#333; border-radius:10px; width:90%; }
+  button { background:#4CAF50; padding:10px 20px; border:none; border-radius:5px; color:white; cursor:pointer; margin:5px; }
+  button:hover { background:#45a049; }
+</style>
+</head>
+<body>
+
+<h1>🏎️ Realistic G-Wagon Car Game 🏎️</h1>
+<p>Use LEFT & RIGHT arrow keys to move your luxury car!</p>
+
+<div id="ads">
+  <p>Ad Banner Here (replace with your AdSense code)</p>
+</div>
+
+<canvas id="gameCanvas" width="400" height="600"></canvas>
+<div id="score">Score: 0</div>
+
+<div id="store">
+  <h2>Buy Premium Features</h2>
+  <button onclick="buyFeature('Speed Boost',50)">Speed Boost ₹50</button>
+  <button onclick="buyFeature('Exclusive Car',150)">Exclusive G-Wagon ₹150</button>
+</div>
+
+<div id="leaderboard">
+  <h2>Leaderboard</h2>
+  <ol id="leaderboardList"></ol>
+</div>
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+const canvas=document.getElementById('gameCanvas');
+const ctx=canvas.getContext('2d');
+
+let score=0, speedBoost=0, useExclusiveCar=false, leaderboard=[];
+
+// Online URLs of car images (G-Wagon style)
+const playerCars = {
+  normal: 'https://i.imgur.com/8YFJvHI.png',    // Green G-Wagon style
+  exclusive: 'https://i.imgur.com/Ie9vJbn.png'  // Black G-Wagon style
+};
+const enemyCarImg = 'https://i.imgur.com/7i1J3zM.png'; // Red sports car
+
+const playerImage=new Image();
+const enemyImage=new Image();
+playerImage.src=playerCars.normal;
+enemyImage.src=enemyCarImg;
+
+const player={x:180,y:500,width:50,height:100,speed:6};
+const enemies=[];
+
+// Spawn enemy cars
+function createEnemy(){
+  const lane=Math.floor(Math.random()*3);
+  enemies.push({ x: lane*120+60, y:-100, width:50, height:100, speed:3+Math.random()*2+speedBoost });
+}
+
+// Draw player and enemies
+function drawPlayer(){ ctx.drawImage(playerImage, player.x, player.y, player.width, player.height); }
+function drawEnemies(){ enemies.forEach(e=>ctx.drawImage(enemyImage,e.x,e.y,e.width,e.height)); }
+
+// Update enemies
+function updateEnemies(){
+  enemies.forEach((e,i)=>{
+    e.y+=e.speed;
+    if(e.y+e.height>player.y && e.x<player.x+player.width && e.x+e.width>player.x && e.y<player.y+player.height){
+      gameOver();
+    }
+    if(e.y>canvas.height){
+      enemies.splice(i,1);
+      score+=10;
+      document.getElementById('score').innerText='Score: '+score;
+    }
+  });
+}
+
+// Game loop
+function gameLoop(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  drawPlayer();
+  drawEnemies();
+  updateEnemies();
+  requestAnimationFrame(gameLoop);
+}
+
+// Controls
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowLeft' && player.x>0) player.x-=player.speed;
+  if(e.key==='ArrowRight' && player.x<canvas.width-player.width) player.x+=player.speed;
+});
+
+// Game over
+function gameOver(){
+  alert('Game Over! Score: '+score);
+  leaderboard.push(score);
+  leaderboard.sort((a,b)=>b-a);
+  leaderboard=leaderboard.slice(0,5);
+  updateLeaderboard();
+  score=0; enemies.length=0;
+}
+
+// Leaderboard display
+function updateLeaderboard(){
+  const list=document.getElementById('leaderboardList');
+  list.innerHTML='';
+  leaderboard.forEach(s=>{
+    const li=document.createElement('li');
+    li.textContent=s;
+    list.appendChild(li);
+  });
+}
+
+// Razorpay payment
+function buyFeature(item,price){
+  const options={ key:"YOUR_RAZORPAY_KEY", amount:price*100, currency:"INR",
+    name:"Luxury Car Game",
+    description:item,
+    handler:function(resp){
+      alert(item+" bought! Payment ID: "+resp.razorpay_payment_id);
+      if(item==='Speed Boost') speedBoost=2;
+      if(item==='Exclusive Car'){ useExclusiveCar=true; playerImage.src=playerCars.exclusive; }
+    },
+    theme:{color:"#ff6f61"}
+  };
+  const r=new Razorpay(options); r.open();
+}
+
+// Spawn enemies
+setInterval(createEnemy,1000);
+gameLoop();
+</script>
+
+</body>
+</html>
